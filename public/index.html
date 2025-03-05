@@ -1,0 +1,41 @@
+<!doctype html>
+<html data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="./tailwindcss.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 dark:bg-black flex items-center justify-center min-h-screen">
+  <div class="bg-white dark:bg-gradient-to-br  from-lime-950 to-lime-900 dark:text-lime-50 p-8 rounded-2xl  shadow-md w-full max-w-md">
+      <h1 class="text-2xl mb-4">Calculateur d'Intérêt Composé</h1>
+      <form id="interestForm">
+          <div class="mb-4 group">
+              <label for="principal" class="block group-hover:shadow-xl group-hover:-translate-0.5 duration-150">Montant de base:</label>
+              <input type="number" id="principal" class="w-full px-3 py-2 border rounded group-hover:shadow-xl group-hover:-translate-0.5 duration-150 dark:hover:border-yellow-400 dark:focus:outline-yellow-400 hover:border-yellow-800 focus:outline-yellow-800" required>
+          </div>
+          <div class="mb-4 group">
+              <label for="monthlyContribution" class="block group-hover:shadow-xl group-hover:-translate-0.5 duration-150">Somme mensuelle:</label>
+              <input type="number" id="monthlyContribution" class="w-full px-3 py-2 border rounded group-hover:shadow-xl group-hover:-translate-0.5 duration-150 dark:hover:border-yellow-400 dark:focus:outline-yellow-400 hover:border-yellow-800 focus:outline-yellow-800" required>
+          </div>
+          <div class="mb-4 group">
+              <label for="interestRate" class="block group-hover:shadow-xl group-hover:-translate-0.5 duration-150">Taux d'intérêt (%):</label>
+              <input type="number" id="interestRate" class="w-full px-3 py-2 border rounded group-hover:shadow-xl group-hover:-translate-0.5 duration-150 dark:hover:border-yellow-400 dark:focus:outline-yellow-400 hover:border-yellow-800 focus:outline-yellow-800" required>
+          </div>
+          <div class="mb-4 group">
+              <label for="duration" class="block group-hover:shadow-xl group-hover:-translate-0.5 duration-150">Durée:</label>
+              <select id="duration" class="w-full px-3 py-2 border rounded group-hover:shadow-xl group-hover:-translate-0.5 duration-150 dark:hover:border-yellow-400 dark:focus:outline-yellow-400 hover:border-yellow-800 focus:outline-yellow-800" required>
+                  <option value="5">5 ans</option>
+                  <option value="10">10 ans</option>
+                  <option value="20">20 ans</option>
+                  <option value="40">40 ans</option>
+                  <option value="50">50 ans</option>
+              </select>
+          </div>
+          <button type="submit" class="w-full bg-gradient-to-l from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 hover:shadow-xl hover:-translate-0.5 duration-150 text-white py-2 rounded">Calculer</button>
+      </form>
+      <canvas id="interestChart" class="mt-8"></canvas>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

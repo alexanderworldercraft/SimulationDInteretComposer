@@ -1,41 +1,180 @@
 <!doctype html>
-<html data-theme="dark">
+<html lang="fr" class="dark">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="./tailwindcss.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calculateur d'intérêt composé</title>
+
+    <!-- Ton fichier Tailwind compilé -->
+    <link href="./tailwindcss.css" rel="stylesheet" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-gray-100 dark:bg-black flex items-center justify-center min-h-screen">
-  <div class="bg-white dark:bg-gradient-to-br  from-lime-950 to-lime-900 dark:text-lime-50 p-8 rounded-2xl  shadow-md w-full max-w-md">
-      <h1 class="text-2xl mb-4">Calculateur d'Intérêt Composé</h1>
-      <form id="interestForm">
-          <div class="mb-4 group">
-              <label for="principal" class="block group-hover:shadow-xl group-hover:-translate-0.5 duration-150">Montant de base:</label>
-              <input type="number" id="principal" class="w-full px-3 py-2 border rounded group-hover:shadow-xl group-hover:-translate-0.5 duration-150 dark:hover:border-yellow-400 dark:focus:outline-yellow-400 hover:border-yellow-800 focus:outline-yellow-800" required>
-          </div>
-          <div class="mb-4 group">
-              <label for="monthlyContribution" class="block group-hover:shadow-xl group-hover:-translate-0.5 duration-150">Somme mensuelle:</label>
-              <input type="number" id="monthlyContribution" class="w-full px-3 py-2 border rounded group-hover:shadow-xl group-hover:-translate-0.5 duration-150 dark:hover:border-yellow-400 dark:focus:outline-yellow-400 hover:border-yellow-800 focus:outline-yellow-800" required>
-          </div>
-          <div class="mb-4 group">
-              <label for="interestRate" class="block group-hover:shadow-xl group-hover:-translate-0.5 duration-150">Taux d'intérêt (%):</label>
-              <input type="number" id="interestRate" class="w-full px-3 py-2 border rounded group-hover:shadow-xl group-hover:-translate-0.5 duration-150 dark:hover:border-yellow-400 dark:focus:outline-yellow-400 hover:border-yellow-800 focus:outline-yellow-800" required>
-          </div>
-          <div class="mb-4 group">
-              <label for="duration" class="block group-hover:shadow-xl group-hover:-translate-0.5 duration-150">Durée:</label>
-              <select id="duration" class="w-full px-3 py-2 border rounded group-hover:shadow-xl group-hover:-translate-0.5 duration-150 dark:hover:border-yellow-400 dark:focus:outline-yellow-400 hover:border-yellow-800 focus:outline-yellow-800" required>
-                  <option value="5">5 ans</option>
-                  <option value="10">10 ans</option>
-                  <option value="20">20 ans</option>
-                  <option value="40">40 ans</option>
-                  <option value="50">50 ans</option>
-              </select>
-          </div>
-          <button type="submit" class="w-full bg-gradient-to-l from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 hover:shadow-xl hover:-translate-0.5 duration-150 text-white py-2 rounded">Calculer</button>
-      </form>
-      <canvas id="interestChart" class="mt-8"></canvas>
-  </div>
-  <script src="script.js"></script>
+<body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+    <main class="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10">
+        <section class="grid w-full gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
+            
+            <!-- Colonne gauche : formulaire -->
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/30">
+                <div class="mb-6">
+                    <p class="text-sm font-medium uppercase tracking-[0.25em] text-emerald-600 dark:text-emerald-400">
+                        Simulation financière
+                    </p>
+                    <h1 class="mt-2 text-3xl font-bold tracking-tight">
+                        Calculateur d’intérêt composé
+                    </h1>
+                    <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                        Simule l’évolution de ton capital avec versements mensuels et intérêts composés.
+                        Le taux accepte les formats <strong>7.5</strong> et <strong>7,5</strong>.
+                    </p>
+                </div>
+
+                <form id="interestForm" class="space-y-5">
+                    <!-- Montant initial -->
+                    <div>
+                        <label for="principal" class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            Montant de départ (€)
+                        </label>
+                        <input
+                            type="number"
+                            id="principal"
+                            min="0"
+                            step="0.01"
+                            value="10000"
+                            class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition duration-150 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                            placeholder="Ex : 10000"
+                            required
+                        />
+                    </div>
+
+                    <!-- Versement mensuel -->
+                    <div>
+                        <label for="monthlyContribution" class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            Versement mensuel (€)
+                        </label>
+                        <input
+                            type="number"
+                            id="monthlyContribution"
+                            min="0"
+                            step="0.01"
+                            value="500"
+                            class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition duration-150 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                            placeholder="Ex : 500"
+                            required
+                        />
+                    </div>
+
+                    <!-- Taux -->
+                    <div>
+                        <label for="interestRate" class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            Taux d’intérêt annuel (%)
+                        </label>
+                        <input
+                            type="text"
+                            id="interestRate"
+                            inputmode="decimal"
+                            value="7,5"
+                            class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition duration-150 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                            placeholder="Ex : 7,5"
+                            required
+                        />
+                        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                            Tu peux saisir <strong>7,5</strong> ou <strong>7.5</strong>.
+                        </p>
+                    </div>
+
+                    <!-- Durée -->
+                    <div>
+                        <label for="duration" class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            Durée
+                        </label>
+                        <select
+                            id="duration"
+                            class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition duration-150 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
+                            required
+                        >
+                            <option value="5">5 ans</option>
+                            <option value="10">10 ans</option>
+                            <option value="20">20 ans</option>
+                            <option value="30">30 ans</option>
+                            <option value="40">40 ans</option>
+                            <option value="50">50 ans</option>
+                        </select>
+                    </div>
+
+                    <!-- Boutons -->
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <button
+                            type="submit"
+                            class="rounded-2xl bg-emerald-600 px-4 py-3 font-semibold text-white transition duration-150 hover:-translate-y-0.5 hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/20"
+                        >
+                            Lancer la simulation
+                        </button>
+
+                        <button
+                            type="button"
+                            id="resetButton"
+                            class="rounded-2xl border border-slate-300 bg-white px-4 py-3 font-semibold text-slate-700 transition duration-150 hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-lg dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-900"
+                        >
+                            Réinitialiser
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Colonne droite : résultats -->
+            <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/30">
+                <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p class="text-sm font-medium uppercase tracking-[0.25em] text-cyan-600 dark:text-cyan-400">
+                            Résultats
+                        </p>
+                        <h2 class="mt-2 text-2xl font-bold tracking-tight">
+                            Évolution du capital
+                        </h2>
+                    </div>
+
+                    <div id="summaryText" class="text-sm text-slate-500 dark:text-slate-400">
+                        Lance une simulation pour afficher les détails.
+                    </div>
+                </div>
+
+                <!-- Cartes de synthèse -->
+                <div class="mb-6 grid gap-4 sm:grid-cols-3">
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Capital final</p>
+                        <p id="finalAmount" class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">—</p>
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Total versé</p>
+                        <p id="totalInvested" class="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">—</p>
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Intérêts gagnés</p>
+                        <p id="totalInterest" class="mt-2 text-2xl font-bold text-cyan-600 dark:text-cyan-400">—</p>
+                    </div>
+                </div>
+
+                <!-- Graphique -->
+                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold">Projection mensuelle</h3>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">
+                            Le graphique affiche une progression mois par mois, ce qui est bien plus fidèle qu’un simple point annuel.
+                        </p>
+                    </div>
+
+                    <div class="h-[420px]">
+                        <canvas id="interestChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="./script.js"></script>
 </body>
 </html>

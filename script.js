@@ -2,9 +2,8 @@
 //  CONFIGURATION GLOBALE
 // ==============================
 
-// Référence vers le graphique Chart.js.
-// On la stocke ici pour pouvoir détruire l'ancien graphique
-// avant d'en recréer un nouveau à chaque simulation.
+// Référence du graphique Chart.js.
+// On la garde en mémoire afin de le détruire avant chaque nouvelle simulation.
 let interestChartInstance = null;
 
 // ==============================
@@ -12,26 +11,22 @@ let interestChartInstance = null;
 // ==============================
 
 /**
- * Convertit une chaîne en nombre flottant.
- * Accepte les virgules ou les points comme séparateur décimal.
+ * Convertit une valeur texte en nombre flottant.
+ * Gère les virgules et les points.
  *
  * Exemples :
- * "7,5" -> 7.5
- * "7.5" -> 7.5
- * "1 234,56" -> 1234.56
+ * "7,5" => 7.5
+ * "7.5" => 7.5
+ * "1 234,56" => 1234.56
  *
  * @param {string|number} value
  * @returns {number}
  */
 function parseLocalizedNumber(value) {
-    // Si la valeur est déjà un nombre, on la retourne telle quelle.
     if (typeof value === "number") {
         return value;
     }
 
-    // Conversion en chaîne + nettoyage :
-    // - suppression des espaces
-    // - remplacement des virgules par des points
     const normalizedValue = String(value)
         .trim()
         .replace(/\s/g, "")
@@ -41,7 +36,7 @@ function parseLocalizedNumber(value) {
 }
 
 /**
- * Formate un nombre en euro pour affichage.
+ * Formate un nombre en euros.
  *
  * @param {number} value
  * @returns {string}
@@ -72,77 +67,183 @@ function formatPercent(value) {
 // ==============================
 
 /**
- * Calcule l'évolution du capital mois par mois.
+ * Calcule l'évolution du capital mois par mois, avec :
+ * - capital initial
+ * - versement mensuel
+ * - intérêts composés
+ * - retrait fixe mensuel
+ * - retrait d'un pourcentage des intérêts mensuels
  *
- * Hypothèse choisie :
- * - on applique d'abord l'intérêt mensuel
- * - puis on ajoute la contribution mensuelle
+ * Convention choisie pour chaque mois :
+ * 1. calcul des intérêts du mois
+ * 2. ajout du versement mensuel
+ * 3. retrait d'un % des intérêts du mois
+ * 4. retrait fixe mensuel
  *
- * Ce n'est pas la seule convention possible,
- * mais elle est cohérente tant qu'on reste constant.
+ * IMPORTANT :
+ * - le retrait sur intérêts s'applique uniquement aux intérêts du mois
+ * - le retrait fixe peut consommer les intérêts restants puis le capital si besoin
+ * - le retrait total d'un mois ne peut jamais dépasser le capital disponible
  *
- * @param {number} principal            Capital initial
- * @param {number} monthlyContribution  Versement mensuel
- * @param {number} annualRatePercent    Taux annuel en %
- * @param {number} durationYears        Durée en années
+ * @param {number} principal
+ * @param {number} monthlyContribution
+ * @param {number} annualRatePercent
+ * @param {number} durationYears
+ * @param {number} monthlyWithdrawalFixed
+ * @param {number} interestWithdrawalPercent
  * @returns {{
  *   labels: string[],
  *   balances: number[],
  *   contributions: number[],
+ *   withdrawnSeries: number[],
  *   totalInvested: number,
- *   finalAmount: number,
- *   totalInterest: number
+ *   totalWithdrawn: number,
+ *   grossInterest: number,
+ *   totalInterestWithdrawn: number,
+ *   capitalConsumedByWithdrawals: number,
+ *   netInterest: number,
+ *   finalAmount: number
  * }}
  */
-function calculateCompoundInterest(principal, monthlyContribution, annualRatePercent, durationYears) {
-    // Conversion du taux annuel en taux mensuel
-    // Exemple : 7.2% annuel -> 0.072 / 12 par mois
+function calculateCompoundInterestWithWithdrawals(
+    principal,
+    monthlyContribution,
+    annualRatePercent,
+    durationYears,
+    monthlyWithdrawalFixed,
+    interestWithdrawalPercent
+) {
+    // Taux mensuel
     const monthlyRate = annualRatePercent / 100 / 12;
 
-    // Nombre total de mois de simulation
+    // Nombre total de mois
     const totalMonths = durationYears * 12;
 
-    // Variables de suivi
+    // Variables de suivi global
     let currentBalance = principal;
     let totalInvested = principal;
+    let totalWithdrawn = 0;
+    let grossInterest = 0;
 
-    // Données destinées au graphique
+    // IMPORTANT :
+    // totalInterestWithdrawn = part des intérêts effectivement sortie du portefeuille
+    let totalInterestWithdrawn = 0;
+
+    // capitalConsumedByWithdrawals = part des retraits qui a mangé le capital
+    let capitalConsumedByWithdrawals = 0;
+
+    // Données du graphique
     const labels = ["Départ"];
     const balances = [principal];
     const contributions = [principal];
+    const withdrawnSeries = [0];
 
-    // Boucle de calcul mois par mois
+    // Boucle mensuelle
     for (let month = 1; month <= totalMonths; month++) {
-        // Application des intérêts mensuels
-        currentBalance = currentBalance * (1 + monthlyRate);
+        // ==============================
+        // 0. État avant le mois
+        // ==============================
+        const balanceBeforeMonth = currentBalance;
 
-        // Ajout du versement mensuel
+        // ==============================
+        // 1. Intérêts du mois
+        // ==============================
+        const interestGeneratedThisMonth = currentBalance * monthlyRate;
+
+        // On cumule les intérêts bruts générés
+        grossInterest += interestGeneratedThisMonth;
+
+        // On ajoute ces intérêts au capital
+        currentBalance += interestGeneratedThisMonth;
+
+        // ==============================
+        // 2. Versement mensuel
+        // ==============================
         currentBalance += monthlyContribution;
-
-        // Mise à jour du total réellement versé
         totalInvested += monthlyContribution;
 
-        // Libellé du mois
-        // Exemple : "M1", "M2", ..., "M120"
+        // ==============================
+        // 3. Retrait sur intérêts du mois
+        // ==============================
+
+        // Part théorique à retirer depuis les intérêts du mois uniquement
+        const plannedInterestWithdrawal =
+            interestGeneratedThisMonth * (interestWithdrawalPercent / 100);
+
+        // Par sécurité, on ne retire jamais plus que les intérêts générés du mois
+        const actualInterestWithdrawal = Math.min(
+            plannedInterestWithdrawal,
+            interestGeneratedThisMonth,
+            currentBalance
+        );
+
+        // On retire cette part du portefeuille
+        currentBalance -= actualInterestWithdrawal;
+
+        // On cumule la part d'intérêts sortie
+        totalInterestWithdrawn += actualInterestWithdrawal;
+        totalWithdrawn += actualInterestWithdrawal;
+
+        // ==============================
+        // 4. Retrait fixe mensuel
+        // ==============================
+
+        // Retrait fixe réellement possible ce mois-ci
+        const actualFixedWithdrawal = Math.min(monthlyWithdrawalFixed, currentBalance);
+
+        // Pour savoir si ce retrait fixe mange du capital, on regarde
+        // combien d'intérêts "restent" encore disponibles après le retrait
+        // sur intérêts du mois.
+        const remainingInterestThisMonth =
+            Math.max(interestGeneratedThisMonth - actualInterestWithdrawal, 0);
+
+        // La part du retrait fixe qui peut encore être couverte par les intérêts du mois
+        const fixedWithdrawalCoveredByInterest = Math.min(
+            actualFixedWithdrawal,
+            remainingInterestThisMonth
+        );
+
+        // Le reste du retrait fixe vient forcément du capital
+        const fixedWithdrawalCoveredByCapital =
+            actualFixedWithdrawal - fixedWithdrawalCoveredByInterest;
+
+        // Application du retrait fixe
+        currentBalance -= actualFixedWithdrawal;
+
+        // Tracking des retraits
+        totalWithdrawn += actualFixedWithdrawal;
+        totalInterestWithdrawn += fixedWithdrawalCoveredByInterest;
+        capitalConsumedByWithdrawals += fixedWithdrawalCoveredByCapital;
+
+        // ==============================
+        // 5. Stockage des données
+        // ==============================
         labels.push(`M${month}`);
-
-        // Valeur totale du portefeuille
         balances.push(currentBalance);
-
-        // Montant total injecté par l'utilisateur
         contributions.push(totalInvested);
+        withdrawnSeries.push(totalWithdrawn);
     }
 
-    // Calcul des intérêts gagnés
-    const totalInterest = currentBalance - totalInvested;
+    // ==============================
+    // 6. Calcul des intérêts conservés
+    // ==============================
+
+    // Intérêts nets réellement conservés dans le portefeuille
+    // = intérêts générés - part des intérêts retirée
+    const netInterest = grossInterest - totalInterestWithdrawn;
 
     return {
         labels,
         balances,
         contributions,
+        withdrawnSeries,
         totalInvested,
-        finalAmount: currentBalance,
-        totalInterest
+        totalWithdrawn,
+        grossInterest,
+        totalInterestWithdrawn,
+        capitalConsumedByWithdrawals,
+        netInterest,
+        finalAmount: currentBalance
     };
 }
 
@@ -156,25 +257,24 @@ function calculateCompoundInterest(principal, monthlyContribution, annualRatePer
  * @param {string[]} labels
  * @param {number[]} balances
  * @param {number[]} contributions
+ * @param {number[]} withdrawnSeries
  */
-function renderChart(labels, balances, contributions) {
+function renderChart(labels, balances, contributions, withdrawnSeries) {
     const canvas = document.getElementById("interestChart");
     const context = canvas.getContext("2d");
 
-    // Si un ancien graphique existe, on le détruit.
-    // Sinon Chart.js superpose des couches comme un millefeuille du chaos.
+    // Destruction de l'ancien graphique avant recréation
     if (interestChartInstance) {
         interestChartInstance.destroy();
     }
 
-    // Création du nouveau graphique
     interestChartInstance = new Chart(context, {
         type: "line",
         data: {
             labels: labels,
             datasets: [
                 {
-                    label: "Capital total",
+                    label: "Capital net",
                     data: balances,
                     borderColor: "#10b981",
                     backgroundColor: "rgba(16, 185, 129, 0.15)",
@@ -195,6 +295,18 @@ function renderChart(labels, balances, contributions) {
                     tension: 0.15,
                     fill: false,
                     borderDash: [6, 6]
+                },
+                {
+                    label: "Total retiré",
+                    data: withdrawnSeries,
+                    borderColor: "#f59e0b",
+                    backgroundColor: "rgba(245, 158, 11, 0.08)",
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    tension: 0.15,
+                    fill: false,
+                    borderDash: [10, 4]
                 }
             ]
         },
@@ -231,13 +343,8 @@ function renderChart(labels, balances, contributions) {
                         color: "#94a3b8",
                         maxTicksLimit: 12,
                         callback: function (value, index) {
-                            // On évite d'afficher 600 labels illisibles sur une longue durée.
-                            // Ici on privilégie un affichage plus léger.
                             const label = this.getLabelForValue(value);
 
-                            // On affiche uniquement :
-                            // - le point de départ
-                            // - puis 1 label par an (M12, M24, M36, etc.)
                             if (label === "Départ") {
                                 return label;
                             }
@@ -276,19 +383,27 @@ function renderChart(labels, balances, contributions) {
 /**
  * Met à jour les cartes de synthèse.
  *
- * @param {number} finalAmount
- * @param {number} totalInvested
- * @param {number} totalInterest
- * @param {number} rate
- * @param {number} years
+ * @param {object} data
+ * @param {number} annualRatePercent
+ * @param {number} durationYears
+ * @param {number} monthlyWithdrawalFixed
+ * @param {number} interestWithdrawalPercent
  */
-function updateSummary(finalAmount, totalInvested, totalInterest, rate, years) {
-    document.getElementById("finalAmount").textContent = formatCurrency(finalAmount);
-    document.getElementById("totalInvested").textContent = formatCurrency(totalInvested);
-    document.getElementById("totalInterest").textContent = formatCurrency(totalInterest);
+function updateSummary(
+    data,
+    annualRatePercent,
+    durationYears,
+    monthlyWithdrawalFixed,
+    interestWithdrawalPercent
+) {
+    document.getElementById("finalAmount").textContent = formatCurrency(data.finalAmount);
+    document.getElementById("totalInvested").textContent = formatCurrency(data.totalInvested);
+    document.getElementById("totalWithdrawn").textContent = formatCurrency(data.totalWithdrawn);
+    document.getElementById("grossInterest").textContent = formatCurrency(data.grossInterest);
+    document.getElementById("netInterest").textContent = formatCurrency(data.netInterest);
 
     document.getElementById("summaryText").textContent =
-        `Simulation sur ${years} ans avec un taux annuel de ${formatPercent(rate)}.`;
+        `Simulation sur ${durationYears} ans • taux ${formatPercent(annualRatePercent)} • retrait fixe ${formatCurrency(monthlyWithdrawalFixed)} • retrait sur intérêts ${formatPercent(interestWithdrawalPercent)}.`;
 }
 
 // ==============================
@@ -299,50 +414,82 @@ function updateSummary(finalAmount, totalInvested, totalInterest, rate, years) {
  * Lance une simulation à partir des valeurs du formulaire.
  */
 function runSimulation() {
-    // Récupération des valeurs brutes
+    // ==============================
+    // Récupération des valeurs
+    // ==============================
     const principal = parseLocalizedNumber(document.getElementById("principal").value);
     const monthlyContribution = parseLocalizedNumber(document.getElementById("monthlyContribution").value);
     const interestRate = parseLocalizedNumber(document.getElementById("interestRate").value);
     const duration = Number.parseInt(document.getElementById("duration").value, 10);
 
-    // Validation simple
+    const monthlyWithdrawalFixed = parseLocalizedNumber(
+        document.getElementById("monthlyWithdrawalFixed").value || "0"
+    );
+
+    const interestWithdrawalPercent = parseLocalizedNumber(
+        document.getElementById("interestWithdrawalPercent").value || "0"
+    );
+
+    // ==============================
+    // Validation
+    // ==============================
     if (
         Number.isNaN(principal) ||
         Number.isNaN(monthlyContribution) ||
         Number.isNaN(interestRate) ||
-        Number.isNaN(duration)
+        Number.isNaN(duration) ||
+        Number.isNaN(monthlyWithdrawalFixed) ||
+        Number.isNaN(interestWithdrawalPercent)
     ) {
         alert("Merci de saisir des valeurs valides.");
         return;
     }
 
-    if (principal < 0 || monthlyContribution < 0 || interestRate < 0 || duration <= 0) {
+    if (
+        principal < 0 ||
+        monthlyContribution < 0 ||
+        interestRate < 0 ||
+        duration <= 0 ||
+        monthlyWithdrawalFixed < 0 ||
+        interestWithdrawalPercent < 0
+    ) {
         alert("Les valeurs ne peuvent pas être négatives, et la durée doit être supérieure à 0.");
         return;
     }
 
-    // Calcul de la simulation
-    const simulation = calculateCompoundInterest(
+    if (interestWithdrawalPercent > 100) {
+        alert("Le pourcentage de retrait sur les intérêts ne peut pas dépasser 100 %.");
+        return;
+    }
+
+    // ==============================
+    // Calcul
+    // ==============================
+    const simulation = calculateCompoundInterestWithWithdrawals(
         principal,
         monthlyContribution,
         interestRate,
-        duration
+        duration,
+        monthlyWithdrawalFixed,
+        interestWithdrawalPercent
     );
 
-    // Mise à jour du résumé
+    // ==============================
+    // Mise à jour UI
+    // ==============================
     updateSummary(
-        simulation.finalAmount,
-        simulation.totalInvested,
-        simulation.totalInterest,
+        simulation,
         interestRate,
-        duration
+        duration,
+        monthlyWithdrawalFixed,
+        interestWithdrawalPercent
     );
 
-    // Mise à jour du graphique
     renderChart(
         simulation.labels,
         simulation.balances,
-        simulation.contributions
+        simulation.contributions,
+        simulation.withdrawnSeries
     );
 }
 
@@ -354,26 +501,27 @@ document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("interestForm");
     const resetButton = document.getElementById("resetButton");
 
-    // Soumission du formulaire :
-    // on empêche le rechargement de la page,
-    // puis on relance la simulation.
+    // Soumission du formulaire
     form.addEventListener("submit", function (event) {
+        // Empêche le rechargement de la page
         event.preventDefault();
+
+        // Lance une nouvelle simulation
         runSimulation();
     });
 
-    // Bouton reset :
-    // on remet des valeurs par défaut
-    // puis on relance directement une simulation propre.
+    // Bouton reset
     resetButton.addEventListener("click", function () {
         document.getElementById("principal").value = "10000";
         document.getElementById("monthlyContribution").value = "500";
         document.getElementById("interestRate").value = "7,5";
         document.getElementById("duration").value = "10";
+        document.getElementById("monthlyWithdrawalFixed").value = "500";
+        document.getElementById("interestWithdrawalPercent").value = "0";
 
         runSimulation();
     });
 
-    // Simulation initiale au chargement
+    // Simulation initiale
     runSimulation();
 });

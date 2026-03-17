@@ -13,7 +13,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
     <main class="mx-auto flex min-h-screen max-w-7xl items-center justify-center px-4 py-10">
-        <section class="grid w-full gap-6 lg:grid-cols-[420px_minmax(0,1fr)]">
+        <section class="grid w-full gap-6 lg:grid-cols-[440px_minmax(0,1fr)]">
             
             <!-- Colonne gauche : formulaire -->
             <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/30">
@@ -25,8 +25,8 @@
                         Calculateur d’intérêt composé
                     </h1>
                     <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-400">
-                        Simule l’évolution de ton capital avec versements mensuels et intérêts composés.
-                        Le taux accepte les formats <strong>7.5</strong> et <strong>7,5</strong>.
+                        Simule l’évolution d’un capital avec versements mensuels, intérêts composés
+                        et budget de train de vie prélevé chaque mois.
                     </p>
                 </div>
 
@@ -96,12 +96,57 @@
                         >
                             <option value="1">1 ans</option>
                             <option value="5">5 ans</option>
-                            <option value="10">10 ans</option>
+                            <option value="10" selected>10 ans</option>
                             <option value="20">20 ans</option>
                             <option value="30">30 ans</option>
                             <option value="40">40 ans</option>
                             <option value="50">50 ans</option>
                         </select>
+                    </div>
+
+                    <!-- Bloc budget de train de vie -->
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+                        <div class="mb-3">
+                            <h2 class="text-sm font-bold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-400">
+                                Budget de train de vie
+                            </h2>
+                            <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                                Tu peux retirer chaque mois un montant fixe et/ou un pourcentage des intérêts générés sur le mois.
+                            </p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- Retrait fixe -->
+                            <div>
+                                <label for="monthlyWithdrawalFixed" class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    Retrait fixe mensuel (€)
+                                </label>
+                                <input
+                                    type="number"
+                                    id="monthlyWithdrawalFixed"
+                                    min="0"
+                                    step="0.01"
+                                    value="500"
+                                    class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition duration-150 placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-cyan-400 dark:focus:ring-cyan-400/20"
+                                    placeholder="Ex : 500"
+                                />
+                            </div>
+
+                            <!-- Retrait % des intérêts -->
+                            <div>
+                                <label for="interestWithdrawalPercent" class="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    Retrait sur les intérêts du mois (%)
+                                </label>
+                                <input
+                                    type="text"
+                                    id="interestWithdrawalPercent"
+                                    inputmode="decimal"
+                                    value="0"
+                                    class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-base outline-none transition duration-150 placeholder:text-slate-400 focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-cyan-400 dark:focus:ring-cyan-400/20"
+                                    placeholder="Ex : 25 ou 25,5"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Boutons -->
@@ -142,7 +187,7 @@
                 </div>
 
                 <!-- Cartes de synthèse -->
-                <div class="mb-6 grid gap-4 sm:grid-cols-3">
+                <div class="mb-6 grid gap-4 sm:grid-cols-2">
                     <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
                         <p class="text-sm text-slate-500 dark:text-slate-400">Capital final</p>
                         <p id="finalAmount" class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-400">—</p>
@@ -154,8 +199,18 @@
                     </div>
 
                     <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Intérêts gagnés</p>
-                        <p id="totalInterest" class="mt-2 text-2xl font-bold text-cyan-600 dark:text-cyan-400">—</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Total retiré</p>
+                        <p id="totalWithdrawn" class="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">—</p>
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Intérêts bruts</p>
+                        <p id="grossInterest" class="mt-2 text-2xl font-bold text-cyan-600 dark:text-cyan-400">—</p>
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/60">
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Intérêts conservés</p>
+                        <p id="netInterest" class="mt-2 text-2xl font-bold text-fuchsia-600 dark:text-fuchsia-400">—</p>
                     </div>
                 </div>
 
@@ -164,11 +219,11 @@
                     <div class="mb-4">
                         <h3 class="text-lg font-semibold">Projection mensuelle</h3>
                         <p class="text-sm text-slate-500 dark:text-slate-400">
-                            Le graphique affiche une progression mois par mois, ce qui est bien plus fidèle qu’un simple point annuel.
+                            Le graphique compare le capital net, le total versé et le total retiré mois par mois.
                         </p>
                     </div>
 
-                    <div class="h-[420px]">
+                    <div class="h-[440px]">
                         <canvas id="interestChart"></canvas>
                     </div>
                 </div>
